@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Bigasan App</title>
+  <title>Princess Vanessa Bigasan</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
     body { font-family: Arial; padding: 20px; max-width: 600px; margin: auto; }
@@ -13,7 +14,7 @@
     .entry { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 5px; }
     .delete-btn {
       background: #dc3545;
-      color: white;
+      color: rgb(35, 35, 35);
       border: none;
       padding: 6px 10px;
       font-size: 0.8em;
@@ -51,6 +52,16 @@
         padding: 5px 0;
         font-size: 0.7em;
       }
+      .top-btn-group {
+        margin-top: 8px;
+        display: flex;
+        gap: 8px;
+      }
+      .top-btn {
+        flex: 1;
+        padding: 8px 0;
+        font-size: 0.9em;
+      }
     }
     @media (max-width: 480px) {
       body {
@@ -83,11 +94,16 @@
 
   <input type="text" id="name" placeholder="Customer Name">
   <input type="number" id="sacks" placeholder="No. of Sacks">
+  <input type="date" id="date" placeholder="Date">
   <select id="mode">
     <option value="cash">Cash (₱1200)</option>
     <option value="credit">Credit (₱1300)</option>
   </select>
   <button id="addBtn">Add Transaction</button>
+  <div class="btn-group top-btn-group">
+    <button id="printBtn" class="top-btn">Print Transactions</button>
+    <button id="downloadBtn" class="top-btn">Download Excel</button>
+  </div>
 
   <h3>Transactions</h3>
   <div id="transactions"></div>
@@ -121,13 +137,13 @@
       const name = document.getElementById("name").value;
       const sacks = parseInt(document.getElementById("sacks").value);
       const mode = document.getElementById("mode").value;
+      const dateInput = document.getElementById("date").value;
 
-      if (!name || !sacks) return alert("Please complete all fields.");
+      if (!name || !sacks || !dateInput) return alert("Please complete all fields.");
 
       const price = mode === "cash" ? 1200 : 1300;
       const total = sacks * price;
-      const date = new Date();
-      const due = mode === "credit" ? new Date(date.setMonth(date.getMonth() + 1)).toISOString().split('T')[0] : "";
+      const due = mode === "credit" ? new Date(new Date(dateInput).setMonth(new Date(dateInput).getMonth() + 1)).toISOString().split('T')[0] : "";
 
       await addDoc(collection(db, "transactions"), {
         name,
@@ -135,13 +151,14 @@
         mode,
         total,
         paid: mode === "cash",
-        date: new Date().toISOString().split('T')[0],
+        date: dateInput,
         due
       });
 
       document.getElementById("name").value = "";
       document.getElementById("sacks").value = "";
       document.getElementById("mode").value = "cash";
+      document.getElementById("date").value = "";
 
       loadTransactions();
     }
@@ -182,9 +199,44 @@
     window.markPaid = markPaid;
     window.deleteTransaction = deleteTransaction;
 
+    function printTransactions() {
+      const printContents = document.getElementById("transactions").innerHTML;
+      const originalContents = document.body.innerHTML;
+      document.body.innerHTML = `<h2>Transactions</h2>${printContents}`;
+      window.print();
+      document.body.innerHTML = originalContents;
+      window.location.reload();
+    }
+
+    function downloadExcel() {
+      const querySnapshot = [];
+      getDocs(collection(db, "transactions")).then(snapshot => {
+        snapshot.forEach(docSnap => {
+          querySnapshot.push(docSnap.data());
+        });
+        let csvContent = "Name,Sacks,Mode,Total,Date,Due,Paid\n";
+        querySnapshot.forEach(row => {
+          csvContent += `"${row.name}",${row.sacks},${row.mode},${row.total},${row.date},${row.due},${row.paid}\n`;
+        });
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "transactions.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+
     document.getElementById("addBtn").addEventListener("click", addTransaction);
+    document.getElementById("printBtn").addEventListener("click", printTransactions);
+    document.getElementById("downloadBtn").addEventListener("click", downloadExcel);
 
     loadTransactions();
+  </script>
+  <script>
+    // Set default date input value to today
+    document.getElementById("date").valueAsDate = new Date();
   </script>
 </body>
 </html>
