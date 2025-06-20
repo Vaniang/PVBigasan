@@ -7,37 +7,41 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 20px;
+      margin: 10px;
       background: #f9f9f9;
     }
     h1 {
       text-align: center;
+      font-size: 1.5em;
     }
     .form-section, .table-section {
-      max-width: 600px;
-      margin: 20px auto;
+      max-width: 100%;
+      margin: 10px auto;
       background: white;
-      padding: 20px;
+      padding: 15px;
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     label {
       display: block;
       margin-top: 10px;
+      font-size: 0.9em;
     }
     input, select, button {
       width: 100%;
-      padding: 10px;
+      padding: 8px;
       margin-top: 5px;
       margin-bottom: 15px;
+      font-size: 0.95em;
     }
     table {
       width: 100%;
       border-collapse: collapse;
+      font-size: 0.85em;
     }
     th, td {
       border: 1px solid #ccc;
-      padding: 10px;
+      padding: 8px;
       text-align: center;
     }
     th {
@@ -58,8 +62,37 @@
     .partial-row td {
       background-color: #fffbe6;
       text-align: left;
-      padding-left: 30px;
+      padding-left: 20px;
       font-style: italic;
+    }
+    @media screen and (max-width: 600px) {
+      table, thead, tbody, th, td, tr {
+        display: block;
+      }
+      thead tr {
+        display: none;
+      }
+      tr {
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        background: #fff;
+        padding: 10px;
+      }
+      td {
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+      }
+      td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        width: 45%;
+        padding-left: 10px;
+        font-weight: bold;
+        text-align: left;
+      }
     }
   </style>
 </head>
@@ -123,15 +156,21 @@
       const table = document.getElementById('tableBody');
       const row = table.insertRow();
       row.setAttribute('data-paid', '0');
+      row.setAttribute('data-total', total);
 
-      row.insertCell(0).textContent = name;
-      row.insertCell(1).textContent = formatDate(dateBorrowed);
-      row.insertCell(2).textContent = qty;
-      row.insertCell(3).textContent = payment.charAt(0).toUpperCase() + payment.slice(1);
-      row.insertCell(4).textContent = total;
-      row.insertCell(5).textContent = formatDate(dueDate);
-      row.insertCell(6).innerHTML = '<span class="unpaid">Unpaid</span>';
-      const actionCell = row.insertCell(7);
+      const values = [name, formatDate(dateBorrowed), qty, payment.charAt(0).toUpperCase() + payment.slice(1), total, formatDate(dueDate)];
+      values.forEach((val, i) => {
+        const cell = row.insertCell();
+        cell.setAttribute('data-label', table.rows[0]?.cells[i]?.textContent || '');
+        cell.textContent = val;
+      });
+
+      const statusCell = row.insertCell();
+      statusCell.setAttribute('data-label', 'Status');
+      statusCell.innerHTML = '<span class="unpaid">Unpaid</span>';
+
+      const actionCell = row.insertCell();
+      actionCell.setAttribute('data-label', 'Action');
 
       const paidBtn = document.createElement('button');
       paidBtn.textContent = 'Mark Paid';
@@ -140,7 +179,7 @@
 
       const partialBtn = document.createElement('button');
       partialBtn.textContent = 'Partial';
-      partialBtn.onclick = function () { partialPayment(partialBtn, total); };
+      partialBtn.onclick = function () { partialPayment(partialBtn); };
       actionCell.appendChild(partialBtn);
 
       document.getElementById('name').value = '';
@@ -156,12 +195,13 @@
       row.cells[7].innerHTML = '';
     }
 
-    function partialPayment(btn, total) {
+    function partialPayment(btn) {
       const row = btn.parentNode.parentNode;
       let paid = parseFloat(row.getAttribute('data-paid')) || 0;
+      let total = parseFloat(row.getAttribute('data-total'));
 
       const input = window.prompt(`Enter partial payment amount (Remaining: ₱${total - paid}):`, "");
-      if (input === null) return; // User cancelled
+      if (input === null) return;
 
       const amount = parseFloat(input);
       if (isNaN(amount) || amount <= 0 || amount > (total - paid)) {
@@ -181,11 +221,13 @@
       td.setAttribute('colspan', '8');
       td.textContent = note;
 
+      row.cells[4].textContent = total - paid;
+
       if (paid >= total) {
         row.cells[6].innerHTML = '<span class="paid">Paid</span>';
         row.cells[7].innerHTML = '';
       } else {
-        row.cells[6].innerHTML = `<span class="partial">Partial (₱${paid} / ₱${total})</span>`;
+        row.cells[6].innerHTML = `<span class="partial">Partial (₱${paid} paid)</span>`;
       }
     }
   </script>
