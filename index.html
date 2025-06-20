@@ -1,51 +1,196 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Princess Vanessa Bigasan</title>
+  <!-- Firebase App and Firestore Scripts -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.onload = () => {
+      loadData();
+      notifyDueDates();
+    };
+
+    window.addCustomer = async function () {
+      const name = document.getElementById('name').value.trim();
+      const qty = parseInt(document.getElementById('quantity').value);
+      const payment = document.getElementById('payment').value;
+      const dateInput = document.getElementById('date').value;
+
+      if (!name || !dateInput || qty < 1) {
+        alert("Please fill in all fields correctly.");
+        return;
+      }
+
+      const total = qty * (payment === 'cash' ? 1200 : 1300);
+      const dateBorrowed = new Date(dateInput);
+      const dueDate = new Date(dateBorrowed);
+      dueDate.setMonth(dueDate.getMonth() + 1);
+
+      const record = {
+        name,
+        quantity: qty,
+        payment,
+        total,
+        dateBorrowed: formatDate(dateBorrowed),
+        dueDate: formatDate(dueDate),
+        status: 'Unpaid'
+      };
+
+      await addDoc(collection(db, "bigasanData"), record);
+      loadData();
+
+      document.getElementById('name').value = '';
+      document.getElementById('quantity').value = 1;
+      document.getElementById('date').value = '';
+      document.getElementById('payment').value = 'cash';
+    };
+
+    function formatDate(date) {
+      return new Date(date).toISOString().split('T')[0];
+    }
+
+    async function loadData() {
+      const snapshot = await getDocs(collection(db, "bigasanData"));
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
+      snapshot.forEach((docSnap) => {
+        const record = docSnap.data();
+        const row = tbody.insertRow();
+        row.insertCell(0).textContent = record.name;
+        row.insertCell(1).textContent = record.dateBorrowed;
+        row.insertCell(2).textContent = record.quantity;
+        row.insertCell(3).textContent = record.payment.charAt(0).toUpperCase() + record.payment.slice(1);
+        row.insertCell(4).textContent = record.total;
+        row.insertCell(5).textContent = record.dueDate;
+        row.insertCell(6).innerHTML = `<span class="${record.status === 'Paid' ? 'paid' : 'unpaid'}">${record.status}</span>`;
+        row.insertCell(7).innerHTML = record.status === 'Unpaid'
+          ? `<button onclick="markPaid('${docSnap.id}')">Mark Paid</button>`
+          : '';
+      });
+    }
+
+    window.markPaid = async function (docId) {
+      const docRef = doc(db, "bigasanData", docId);
+      await updateDoc(docRef, { status: 'Paid' });
+      loadData();
+    };
+
+    async function notifyDueDates() {
+      const today = new Date().toISOString().split('T')[0];
+      const q = query(collection(db, "bigasanData"), where("status", "==", "Unpaid"));
+      const snapshot = await getDocs(q);
+      const dueTodayOrPast = snapshot.docs.filter(doc => doc.data().dueDate <= today);
+      if (dueTodayOrPast.length > 0) {
+        let names = dueTodayOrPast.map(doc => `${doc.data().name} (Due: ${doc.data().dueDate})`).join('\n');
+        alert(`⚠️ The following customers are due or overdue:\n\n${names}`);
+      }
+    }
+
+    window.exportToExcel = function () {
+      let table = document.getElementById("customerTable").outerHTML;
+      let blob = new Blob(['\ufeff', table], { type: 'application/vnd.ms-excel' });
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement("a");
+      a.href = url;
+      a.download = "Bigasan_Records.xls";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+  </script>
+
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 10px;
-      background: #f9f9f9;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to right, #f7f8fc, #eef1f5);
+      color: #333;
     }
-    h1 {
+    h1, h2 {
       text-align: center;
-      font-size: 1.5em;
+      color: #2c3e50;
     }
     .form-section, .table-section {
-      max-width: 100%;
-      margin: 10px auto;
-      background: white;
-      padding: 15px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 1000px;
+      margin: 30px auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
     }
     label {
+      margin-top: 12px;
+      font-weight: 600;
+      color: #555;
       display: block;
-      margin-top: 10px;
-      font-size: 0.9em;
     }
     input, select, button {
       width: 100%;
-      padding: 8px;
-      margin-top: 5px;
-      margin-bottom: 15px;
-      font-size: 0.95em;
+      padding: 12px;
+      margin-top: 6px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .btn-print {
+      background-color: #28a745;
+    }
+    .btn-export {
+      background-color: #17a2b8;
+    }
+    .scrollable-table {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.85em;
+      font-size: 14px;
+      background-color: white;
+      white-space: nowrap;
     }
     th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: center;
+      padding: 12px;
+      border: 1px solid #ddd;
     }
     th {
-      background: #eee;
+      background: #f1f1f1;
+      color: #333;
+      font-weight: bold;
     }
     .paid {
       color: green;
@@ -55,179 +200,35 @@
       color: red;
       font-weight: bold;
     }
-    .partial {
-      color: orange;
-      font-weight: bold;
-    }
-    button {
-      border: none;
-      background-color: #007bff;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    @media screen and (max-width: 600px) {
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-      thead tr {
-        display: none;
-      }
-      tr {
-        margin-bottom: 10px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background: #fff;
+    @media screen and (orientation: portrait) and (max-width: 768px) {
+      body::before {
+        content: "🔄 Please rotate your phone for better view.";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #ffcc00;
+        color: #333;
+        text-align: center;
         padding: 10px;
-      }
-      td {
-        text-align: right;
-        padding-left: 50%;
-        position: relative;
-      }
-      td::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 10px;
-        width: 45%;
-        padding-left: 10px;
-        font-weight: bold;
-        text-align: left;
+        font-size: 16px;
+        z-index: 9999;
       }
     }
   </style>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyAiVmu7os7C6e6ZU6eUKlxYrNBXKDzgjrY",
-      authDomain: "bigasan-98507.firebaseapp.com",
-      projectId: "bigasan-98507",
-      storageBucket: "bigasan-98507.firebasestorage.app",
-      messagingSenderId: "448050398434",
-      appId: "1:448050398434:web:3d966a9cb159831eeecabb"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    const formatDate = (date) => new Date(date).toISOString().split('T')[0];
-
-    const tableBody = document.getElementById("tableBody");
-
-    async function loadRecords() {
-      const snapshot = await getDocs(collection(db, "records"));
-      tableBody.innerHTML = "";
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        insertRow(docSnap.id, data);
-      });
-    }
-
-    function insertRow(id, data) {
-      const row = tableBody.insertRow();
-      row.setAttribute("data-id", id);
-
-      const values = [data.name, data.dateBorrowed, data.qty, data.paymentType, data.remainingTotal, data.dueDate];
-      values.forEach((val, i) => {
-        const cell = row.insertCell();
-        cell.textContent = val;
-      });
-
-      const statusCell = row.insertCell();
-      statusCell.innerHTML = data.status;
-
-      const actionCell = row.insertCell();
-      actionCell.innerHTML = `
-        <button onclick="markPaid('${id}')">Mark Paid</button>
-        <button onclick="partialPayment('${id}')">Partial</button>
-        <button onclick="deleteRecord('${id}')">Delete</button>
-      `;
-    }
-
-    window.markPaid = async function(id) {
-      const docRef = doc(db, "records", id);
-      await updateDoc(docRef, { status: '<span class="paid">Paid</span>', remainingTotal: 0 });
-      loadRecords();
-    }
-
-    window.partialPayment = async function(id) {
-      const input = prompt("Enter partial payment amount:");
-      if (!input || isNaN(input) || input <= 0) return;
-
-      const docRef = doc(db, "records", id);
-      const docSnap = await getDoc(docRef);
-      const data = docSnap.data();
-
-      const paidAmount = parseFloat(data.total - data.remainingTotal) + parseFloat(input);
-      const remaining = data.total - paidAmount;
-      const status = (remaining <= 0)
-        ? '<span class="paid">Paid</span>'
-        : `<span class="partial">Partial (₱${paidAmount.toFixed(2)} paid)</span>`;
-
-      await updateDoc(docRef, {
-        remainingTotal: remaining.toFixed(2),
-        status: status
-      });
-      loadRecords();
-    }
-
-    window.deleteRecord = async function(id) {
-      await deleteDoc(doc(db, "records", id));
-      loadRecords();
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("addRecord").addEventListener("click", async () => {
-        const name = document.getElementById("name").value;
-        const qty = parseInt(document.getElementById("quantity").value);
-        const date = document.getElementById("date").value;
-        const payment = document.getElementById("payment").value;
-
-        const dateBorrowed = date ? new Date(date) : new Date();
-        const dueDate = new Date(dateBorrowed);
-        dueDate.setMonth(dueDate.getMonth() + 1);
-
-        const total = qty * (payment === 'cash' ? 1200 : 1300);
-
-        await addDoc(collection(db, "records"), {
-          name,
-          qty,
-          paymentType: payment,
-          total,
-          remainingTotal: total,
-          dateBorrowed: formatDate(dateBorrowed),
-          dueDate: formatDate(dueDate),
-          status: '<span class="unpaid">Unpaid</span>'
-        });
-
-        document.getElementById("name").value = '';
-        document.getElementById("quantity").value = 1;
-        document.getElementById("date").value = '';
-        document.getElementById("payment").value = 'cash';
-
-        loadRecords();
-      });
-
-      loadRecords();
-    });
-  </script>
 </head>
 <body>
   <h1>Princess Vanessa Bigasan</h1>
+
   <div class="form-section">
     <label for="name">Customer Name:</label>
-    <input type="text" id="name">
+    <input type="text" id="name" required />
 
     <label for="quantity">Quantity (x25kg):</label>
-    <input type="number" id="quantity" min="1" value="1">
+    <input type="number" id="quantity" min="1" value="1" required />
 
     <label for="date">Date Borrowed:</label>
-    <input type="date" id="date">
+    <input type="date" id="date" required />
 
     <label for="payment">Payment Type:</label>
     <select id="payment">
@@ -235,26 +236,32 @@
       <option value="credit">Credit</option>
     </select>
 
-    <button id="addRecord">Add Record</button>
+    <button onclick="addCustomer()">Add Record</button>
   </div>
 
   <div class="table-section">
     <h2>Customer Records</h2>
-    <table id="customerTable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Date Borrowed</th>
-          <th>Qty (25kg)</th>
-          <th>Payment</th>
-          <th>Total (₱)</th>
-          <th>Due Date</th>
-          <th>Status</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
+    <div class="actions">
+      <button class="btn-print" onclick="window.print()">🖨️ Print</button>
+      <button class="btn-export" onclick="exportToExcel()">📁 Export to Excel</button>
+    </div>
+    <div class="scrollable-table">
+      <table id="customerTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Date Borrowed</th>
+            <th>Qty (25kg)</th>
+            <th>Payment</th>
+            <th>Total (₱)</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
   </div>
 </body>
 </html>
