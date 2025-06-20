@@ -142,6 +142,19 @@
       return date.toISOString().split('T')[0];
     }
 
+    function saveToLocalStorage() {
+      localStorage.setItem('bigasanData', document.getElementById('tableBody').innerHTML);
+    }
+
+    function loadFromLocalStorage() {
+      const data = localStorage.getItem('bigasanData');
+      if (data) {
+        document.getElementById('tableBody').innerHTML = data;
+      }
+    }
+
+    window.onload = loadFromLocalStorage;
+
     function addCustomer() {
       const name = document.getElementById('name').value;
       const qty = parseInt(document.getElementById('quantity').value);
@@ -161,7 +174,7 @@
       const values = [name, formatDate(dateBorrowed), qty, payment.charAt(0).toUpperCase() + payment.slice(1), total, formatDate(dueDate)];
       values.forEach((val, i) => {
         const cell = row.insertCell();
-        cell.setAttribute('data-label', table.rows[0]?.cells[i]?.textContent || '');
+        cell.setAttribute('data-label', ['Name', 'Date Borrowed', 'Qty (25kg)', 'Payment', 'Total (₱)', 'Due Date'][i]);
         cell.textContent = val;
       });
 
@@ -171,28 +184,26 @@
 
       const actionCell = row.insertCell();
       actionCell.setAttribute('data-label', 'Action');
-
-      const paidBtn = document.createElement('button');
-      paidBtn.textContent = 'Mark Paid';
-      paidBtn.onclick = function () { markPaid(paidBtn); };
-      actionCell.appendChild(paidBtn);
-
-      const partialBtn = document.createElement('button');
-      partialBtn.textContent = 'Partial';
-      partialBtn.onclick = function () { partialPayment(partialBtn); };
-      actionCell.appendChild(partialBtn);
+      actionCell.innerHTML = `
+        <button onclick="markPaid(this)">Mark Paid</button>
+        <button onclick="partialPayment(this)">Partial</button>
+        <button onclick="deleteRow(this)">Delete</button>
+      `;
 
       document.getElementById('name').value = '';
       document.getElementById('quantity').value = 1;
       document.getElementById('date').value = '';
       document.getElementById('payment').value = 'cash';
+
+      saveToLocalStorage();
     }
 
     function markPaid(btn) {
       const row = btn.parentNode.parentNode;
       row.cells[6].innerHTML = '<span class="paid">Paid</span>';
       row.setAttribute('data-paid', row.cells[4].textContent);
-      row.cells[7].innerHTML = '';
+      row.cells[7].innerHTML = '<button onclick="deleteRow(this)">Delete</button>';
+      saveToLocalStorage();
     }
 
     function partialPayment(btn) {
@@ -221,14 +232,30 @@
       td.setAttribute('colspan', '8');
       td.textContent = note;
 
-      row.cells[4].textContent = total - paid;
+      row.setAttribute('data-total', total);
+      row.cells[4].textContent = (total - paid).toFixed(2);
 
       if (paid >= total) {
         row.cells[6].innerHTML = '<span class="paid">Paid</span>';
-        row.cells[7].innerHTML = '';
+        row.cells[7].innerHTML = '<button onclick="deleteRow(this)">Delete</button>';
       } else {
-        row.cells[6].innerHTML = `<span class="partial">Partial (₱${paid} paid)</span>`;
+        row.cells[6].innerHTML = `<span class="partial">Partial (₱${paid.toFixed(2)} paid)</span>`;
       }
+
+      saveToLocalStorage();
+    }
+
+    function deleteRow(btn) {
+      const row = btn.closest('tr');
+      const table = document.getElementById('tableBody');
+      const index = row.rowIndex;
+
+      if (index < table.rows.length - 1 && table.rows[index + 1].classList.contains('partial-row')) {
+        table.deleteRow(index + 1);
+      }
+      table.deleteRow(index);
+
+      saveToLocalStorage();
     }
   </script>
 </body>
