@@ -1,240 +1,97 @@
+<!-- Replace your existing HTML with this -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Princess Vanessa Bigasan</title>
-  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 10px;
-      background: #f9f9f9;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 1rem;
     }
     h1 {
       text-align: center;
-      font-size: 1.5em;
     }
-    .form-section, .table-section, .dashboard-section {
-      max-width: 100%;
-      margin: 10px auto;
-      background: white;
-      padding: 15px;
+    .form-section, .table-section, .dashboard, .monthly-stats {
+      background: #fff;
+      margin: 1rem auto;
+      padding: 1rem;
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 100%;
     }
     label {
       display: block;
       margin-top: 10px;
-      font-size: 0.9em;
     }
     input, select, button {
       width: 100%;
       padding: 8px;
-      margin-top: 5px;
-      margin-bottom: 15px;
-      font-size: 0.95em;
+      margin: 5px 0 15px;
+      font-size: 1rem;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.85em;
     }
     th, td {
+      padding: 10px;
       border: 1px solid #ccc;
-      padding: 8px;
       text-align: center;
     }
-    th {
-      background: #eee;
+    .card {
+      display: inline-block;
+      width: 100%;
+      max-width: 300px;
+      margin: 0.5rem;
+      padding: 1rem;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.05);
+    }
+    .dashboard, .monthly-stats {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
     }
     .paid { color: green; font-weight: bold; }
     .unpaid { color: red; font-weight: bold; }
     .partial { color: orange; font-weight: bold; }
-    button {
-      border: none;
-      background-color: #007bff;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    button:hover { background-color: #0056b3; }
-    @media screen and (max-width: 600px) {
+    @media (max-width: 600px) {
       table, thead, tbody, th, td, tr { display: block; }
       thead tr { display: none; }
       tr {
-        margin-bottom: 10px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
+        margin-bottom: 1rem;
         background: #fff;
-        padding: 10px;
+        padding: 1rem;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.05);
       }
       td {
         text-align: right;
-        padding-left: 50%;
         position: relative;
+        padding-left: 50%;
       }
       td::before {
         content: attr(data-label);
         position: absolute;
         left: 10px;
-        width: 45%;
-        padding-left: 10px;
         font-weight: bold;
         text-align: left;
       }
     }
   </style>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSy AiVmu7os7C6e6ZU6eUKlxYrNBXKDzgjrY",
-      authDomain: "bigasan-98507.firebaseapp.com",
-      projectId: "bigasan-98507",
-      storageBucket: "bigasan-98507.appspot.com",
-      messagingSenderId: "448050398434",
-      appId: "1:448050398434:web:3d966a9cb159831eeecabb"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    const formatDate = (date) => new Date(date).toISOString().split('T')[0];
-    const tableBody = document.getElementById("tableBody");
-    const totalCount = document.getElementById("totalCount");
-    const totalPaid = document.getElementById("totalPaid");
-    const totalUnpaid = document.getElementById("totalUnpaid");
-    const totalBalance = document.getElementById("totalBalance");
-
-    async function loadRecords() {
-      const snapshot = await getDocs(collection(db, "records"));
-      const records = [];
-
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        records.push({ id: docSnap.id, ...data });
-      });
-
-      // Sort by dateBorrowed descending
-      records.sort((a, b) => new Date(b.dateBorrowed) - new Date(a.dateBorrowed));
-
-      tableBody.innerHTML = "";
-      let paid = 0, unpaid = 0, balance = 0;
-
-      records.forEach((record) => {
-        insertRow(record.id, record);
-        if (record.status.includes("Paid")) paid++;
-        else if (record.status.includes("Unpaid")) unpaid++;
-        balance += parseFloat(record.remainingTotal);
-      });
-
-      totalCount.textContent = records.length;
-      totalPaid.textContent = paid;
-      totalUnpaid.textContent = unpaid;
-      totalBalance.textContent = `₱${balance.toFixed(2)}`;
-    }
-
-    function insertRow(id, data) {
-      const row = tableBody.insertRow();
-      row.setAttribute("data-id", id);
-
-      const values = [data.name, data.dateBorrowed, data.qty, data.paymentType, data.remainingTotal, data.dueDate];
-      values.forEach((val, i) => {
-        const cell = row.insertCell();
-        cell.textContent = val;
-      });
-
-      const statusCell = row.insertCell();
-      statusCell.innerHTML = data.status;
-
-      const actionCell = row.insertCell();
-      actionCell.innerHTML = `
-        <button onclick="markPaid('${id}')">Mark Paid</button>
-        <button onclick="partialPayment('${id}')">Partial</button>
-        <button onclick="deleteRecord('${id}')">Delete</button>
-      `;
-    }
-
-    window.markPaid = async function(id) {
-      const docRef = doc(db, "records", id);
-      await updateDoc(docRef, { status: '<span class="paid">Paid</span>', remainingTotal: 0 });
-      loadRecords();
-    }
-
-    window.partialPayment = async function(id) {
-      const input = prompt("Enter partial payment amount:");
-      if (!input || isNaN(input) || input <= 0) return;
-
-      const docRef = doc(db, "records", id);
-      const docSnap = await getDoc(docRef);
-      const data = docSnap.data();
-
-      const paidAmount = parseFloat(data.total - data.remainingTotal) + parseFloat(input);
-      const remaining = data.total - paidAmount;
-      const status = (remaining <= 0)
-        ? '<span class="paid">Paid</span>'
-        : `<span class="partial">Partial (₱${paidAmount.toFixed(2)} paid)</span>`;
-
-      await updateDoc(docRef, {
-        remainingTotal: remaining.toFixed(2),
-        status: status
-      });
-      loadRecords();
-    }
-
-    window.deleteRecord = async function(id) {
-      await deleteDoc(doc(db, "records", id));
-      loadRecords();
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("addRecord").addEventListener("click", async () => {
-        const name = document.getElementById("name").value;
-        const qty = parseInt(document.getElementById("quantity").value);
-        const date = document.getElementById("date").value;
-        const payment = document.getElementById("payment").value;
-
-        const dateBorrowed = date ? new Date(date) : new Date();
-        const dueDate = new Date(dateBorrowed);
-        dueDate.setMonth(dueDate.getMonth() + 1);
-
-        const total = qty * (payment === 'cash' ? 1200 : 1300);
-
-        await addDoc(collection(db, "records"), {
-          name,
-          qty,
-          paymentType: payment,
-          total,
-          remainingTotal: total,
-          dateBorrowed: formatDate(dateBorrowed),
-          dueDate: formatDate(dueDate),
-          status: '<span class="unpaid">Unpaid</span>'
-        });
-
-        document.getElementById("name").value = '';
-        document.getElementById("quantity").value = 1;
-        document.getElementById("date").value = '';
-        document.getElementById("payment").value = 'cash';
-
-        loadRecords();
-      });
-
-      document.getElementById("exportExcel").addEventListener("click", () => {
-        const wb = XLSX.utils.book_new();
-        const table = document.getElementById("customerTable");
-        const ws = XLSX.utils.table_to_sheet(table);
-        XLSX.utils.book_append_sheet(wb, ws, "BigasanRecords");
-        XLSX.writeFile(wb, "BigasanRecords.xlsx");
-      });
-
-      loadRecords();
-    });
-  </script>
 </head>
 <body>
   <h1>Princess Vanessa Bigasan</h1>
+
   <div class="form-section">
     <label for="name">Customer Name:</label>
     <input type="text" id="name">
@@ -254,25 +111,20 @@
     <button id="addRecord">Add Record</button>
   </div>
 
-  <div class="dashboard-section">
-    <h2>📊 Dashboard</h2>
-    <p>Total Customers: <strong id="totalCount">0</strong></p>
-    <p>Paid: <strong id="totalPaid">0</strong></p>
-    <p>Unpaid: <strong id="totalUnpaid">0</strong></p>
-    <p>Outstanding Balance: <strong id="totalBalance">₱0.00</strong></p>
-  </div>
+  <div class="dashboard" id="dashboardMetrics"></div>
+  <div class="monthly-stats" id="monthlyStats"></div>
 
   <div class="table-section">
     <h2>Customer Records</h2>
-    <button id="exportExcel">📁 Export to Excel</button>
-    <table id="customerTable">
+    <button onclick="exportToExcel()">Export to Excel</button>
+    <table>
       <thead>
         <tr>
           <th>Name</th>
           <th>Date Borrowed</th>
-          <th>Qty (25kg)</th>
-          <th>Payment</th>
-          <th>Total (₱)</th>
+          <th>Qty</th>
+          <th>Payment Type</th>
+          <th>Remaining Total</th>
           <th>Due Date</th>
           <th>Status</th>
           <th>Action</th>
@@ -282,6 +134,215 @@
     </table>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <div class="table-section" id="chartContainer">
+    <canvas id="monthlyChart"></canvas>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAiVmu7os7C6e6ZU6eUKlxYrNBXKDzgjrY",
+      authDomain: "bigasan-98507.firebaseapp.com",
+      projectId: "bigasan-98507",
+      storageBucket: "bigasan-98507.appspot.com",
+      messagingSenderId: "448050398434",
+      appId: "1:448050398434:web:3d966a9cb159831eeecabb"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const tableBody = document.getElementById("tableBody");
+    const formatDate = (date) => new Date(date).toISOString().split('T')[0];
+
+    async function loadRecords() {
+      const snapshot = await getDocs(collection(db, "records"));
+      const records = [];
+      tableBody.innerHTML = "";
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        data.id = docSnap.id;
+        records.push(data);
+      });
+
+      records.sort((a, b) => new Date(b.dateBorrowed) - new Date(a.dateBorrowed));
+      records.forEach(record => insertRow(record));
+      updateDashboard(records);
+      drawChart(records);
+    }
+
+    function insertRow(data) {
+      const row = tableBody.insertRow();
+      row.setAttribute("data-id", data.id);
+
+      const values = [data.name, data.dateBorrowed, data.qty, data.paymentType, data.remainingTotal, data.dueDate];
+      values.forEach(val => {
+        const cell = row.insertCell();
+        cell.textContent = val;
+      });
+
+      const statusCell = row.insertCell();
+      statusCell.innerHTML = data.status;
+
+      const actionCell = row.insertCell();
+      actionCell.innerHTML = `
+        <button onclick="markPaid('${data.id}')">Mark Paid</button>
+        <button onclick="partialPayment('${data.id}')">Partial</button>
+        <button onclick="deleteRecord('${data.id}')">Delete</button>
+      `;
+    }
+
+    window.markPaid = async function(id) {
+      const ref = doc(db, "records", id);
+      await updateDoc(ref, {
+        status: '<span class="paid">Paid</span>',
+        remainingTotal: 0
+      });
+      loadRecords();
+    };
+
+    window.partialPayment = async function(id) {
+      const amount = parseFloat(prompt("Enter amount paid:"));
+      if (!amount || isNaN(amount) || amount <= 0) return;
+
+      const ref = doc(db, "records", id);
+      const snap = await getDoc(ref);
+      const data = snap.data();
+
+      const paid = (data.total - data.remainingTotal) + amount;
+      const remaining = data.total - paid;
+      const status = (remaining <= 0)
+        ? '<span class="paid">Paid</span>'
+        : `<span class="partial">Partial (₱${paid.toFixed(2)} paid)</span>`;
+
+      await updateDoc(ref, {
+        remainingTotal: remaining.toFixed(2),
+        status: status
+      });
+      loadRecords();
+    };
+
+    window.deleteRecord = async function(id) {
+      await deleteDoc(doc(db, "records", id));
+      loadRecords();
+    };
+
+    document.getElementById("addRecord").addEventListener("click", async () => {
+      const name = document.getElementById("name").value;
+      const qty = parseInt(document.getElementById("quantity").value);
+      const date = document.getElementById("date").value;
+      const payment = document.getElementById("payment").value;
+
+      const dateBorrowed = date ? new Date(date) : new Date();
+      const dueDate = new Date(dateBorrowed);
+      dueDate.setMonth(dueDate.getMonth() + 1);
+
+      const total = qty * (payment === 'cash' ? 1200 : 1300);
+
+      await addDoc(collection(db, "records"), {
+        name,
+        qty,
+        paymentType: payment,
+        total,
+        remainingTotal: total,
+        dateBorrowed: formatDate(dateBorrowed),
+        dueDate: formatDate(dueDate),
+        status: '<span class="unpaid">Unpaid</span>'
+      });
+
+      document.getElementById("name").value = '';
+      document.getElementById("quantity").value = 1;
+      document.getElementById("date").value = '';
+      document.getElementById("payment").value = 'cash';
+
+      loadRecords();
+    });
+
+    function updateDashboard(records) {
+      const dashboard = document.getElementById("dashboardMetrics");
+      const totalOutstanding = records.reduce((sum, r) => sum + parseFloat(r.remainingTotal), 0);
+
+      dashboard.innerHTML = `
+        <div class="card">
+          <h3>Total Outstanding</h3>
+          <p>₱${totalOutstanding.toFixed(2)}</p>
+        </div>
+      `;
+
+      const monthlyStats = document.getElementById("monthlyStats");
+      const monthlyMap = {};
+
+      records.forEach(r => {
+        const date = new Date(r.dateBorrowed);
+        const month = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+        if (!monthlyMap[month]) monthlyMap[month] = { sales: 0, profit: 0 };
+        monthlyMap[month].sales += r.total;
+        monthlyMap[month].profit += (r.total - r.qty * 800);
+      });
+
+      monthlyStats.innerHTML = Object.entries(monthlyMap).map(([month, data]) => `
+        <div class="card">
+          <h4>${month}</h4>
+          <p><strong>Sales:</strong> ₱${data.sales.toFixed(2)}</p>
+          <p><strong>Profit:</strong> ₱${data.profit.toFixed(2)}</p>
+        </div>
+      `).join('');
+    }
+
+    function drawChart(records) {
+      const monthly = {};
+      records.forEach(r => {
+        const date = new Date(r.dateBorrowed);
+        const key = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+        monthly[key] = (monthly[key] || 0) + r.total;
+      });
+
+      const ctx = document.getElementById('monthlyChart').getContext('2d');
+      if (window.bar) window.bar.destroy();
+
+      window.bar = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(monthly),
+          datasets: [{
+            label: 'Monthly Sales (₱)',
+            data: Object.values(monthly),
+            backgroundColor: '#007bff'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    window.exportToExcel = function () {
+      const rows = [...document.querySelectorAll("#tableBody tr")].map(tr =>
+        [...tr.children].map(td => td.textContent)
+      );
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([
+        ["Name", "Date Borrowed", "Qty", "Payment Type", "Remaining Total", "Due Date", "Status", "Action"],
+        ...rows
+      ]);
+      XLSX.utils.book_append_sheet(wb, ws, "Bigasan Records");
+      XLSX.writeFile(wb, "bigasan-records.xlsx");
+    };
+
+    // Offline support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('Service Worker Registered'));
+    }
+
+    loadRecords();
+  </script>
 </body>
 </html>
